@@ -83,11 +83,15 @@ def abrirRelatorio():
             df = DataFrame(dados, columns=nome_Colunas)
             #Se der certo ele acha a pasta, se der errado ele grava no desktop
             try:
-                df.to_excel(f'{entryDir.get()}/Gastos.xlsx', index=False)
-            except:
-                df.to_excel(f'C:/Users/{usuario}/Desktop/Gastos.xlsx', index=False)
-            messagebox.showinfo('Planilha', 'Planilha gerada com sucesso.')
-            conec.close()
+                'C:/Users/Desktop/Planilha_Gastos.xlsx'
+                if entryDir.get():
+                    df.to_excel(f'{entryDir.get()}', index=False)
+                    messagebox.showinfo('Planilha', 'Planilha gerada com sucesso.')
+                else:
+                    df.to_excel(f'C:/Users{usuario}/Desktop/Planilha_Gastos.xlsx', index=False)
+                    messagebox.showinfo('Planilha', 'Planilha gerada com sucesso.')
+            finally:
+                conec.close()
         except:
             messagebox.showerror('ERRO', 'Erro ao gerar relatório.')
 
@@ -100,14 +104,17 @@ def abrirRelatorio():
     imgTkArquivo = CTkImage(light_image=imgArquivo, dark_image=imgArquivo, size=(35,35))
 
     def buscaDir():
-        diretorio = filedialog.askdirectory()
-        entryDir.configure(state='normal')
+        diretorio = filedialog.asksaveasfilename(
+            initialdir='C:/Users/Desktop',
+            initialfile='Planilha_Gastos.xlsx',
+            defaultextension='xlsx',
+            filetypes=[('Arquivos Excel', '*.xlsx')],
+        )
         entryDir.delete(0, 'end')
         entryDir.insert(0, diretorio)
 
     entryDir = ctk.CTkEntry(jRelatorio,font=('Arial',17),height=30,width=380)
-    entryDir.insert(0, f'C:/Users/Desktop/{usuario}/Gastos.xlsx')
-    entryDir.configure(state='disabled')
+    entryDir.insert(0, f'C:/Users/{usuario}/Desktop/Planilha_Gastos.xlsx') #Pode colocar uma variável que escolhe o padrão
     entryDir.place(x=60, y=15)
     ctk.CTkButton(jRelatorio,text='',width=35,command=buscaDir,image=imgTkArquivo,fg_color='transparent').place(x=10,y=10)
 
