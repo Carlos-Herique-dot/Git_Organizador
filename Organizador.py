@@ -1,15 +1,20 @@
-import pandas as pd
-from tkinter import messagebox
+from customtkinter import CTkImage
+from pandas import DataFrame
+from tkinter import messagebox, filedialog
 import customtkinter as ctk
 from datetime import datetime
 import sqlite3 as sql
+from PIL import Image
+from os import getlogin
+
+usuario = getlogin()
 
 def conectarSQLite():
-    vaData = entryData.get()
-    vaCompra = entryCompra.get()
-    vaValor = entryValor.get()
     try:
-        conexao = sql.connect('Dados.db')
+        vaData = entryData.get()
+        vaCompra = entryCompra.get()
+        vaValor = entryValor.get()
+        conexao = sql.connect(f'C:/Users/{usuario}/AppData/Dados.db')
         cursor = conexao.cursor()
         cursor.execute('''create table if not exists compras(
                        id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,10 +25,10 @@ def conectarSQLite():
 
         cursor.execute("insert into compras(DATA, COMPRAS, VALORES) values (?, ?, ?)", (vaData, vaCompra, vaValor))
         conexao.commit()
+        cursor.close()
         conexao.close()
-        #print('Sucesso')
     except:
-        print('Erro ao conectar SQLite')
+        pass
 
 def inserirDados():
     vData = entryData.get()
@@ -33,56 +38,83 @@ def inserirDados():
     if not vData or not vCompra or not vValor:
         messagebox.showerror('ERRO', 'Insira todos os dados')
     else:
-        dSalvar = messagebox.askyesno('SALVAR', 'DESEJA SALVAR?')
-        if dSalvar == True:
-            conectarSQLite()
-            entryValor.delete(0, 'end')
-            entryCompra.delete(0,'end')
-            messagebox.showinfo('CONCLUÍDO', 'DADOS SALVO')
-        elif dSalvar == False:
-            entryValor.delete(0, 'end')
-            entryCompra.delete(0, 'end')
-            vValor=''
-            vCompra=''
-            vData=''
-            messagebox.showerror('Cancelado', 'Operação Cancelada')
-
-def criarExcel():
-    try:
-        #Conecta no BD e puxa as informações
-        conec = sql.connect('Dados.db')
-        cursor = conec.cursor()
-        cursor.execute('Select DATA, COMPRAS, VALORES from compras')
-        dados = cursor.fetchall()
-        print('Conectou')
-        #Obtem os dados das colunas
-        nome_Colunas = [descricao[0] for descricao in cursor.description]
-        print('Leu as colunas')
-        #Cria um df com pandas
-        df = pd.DataFrame(dados, columns=nome_Colunas)
-        df.to_excel('Gastos.xlsx', index=False)
-        print('Gerou o excel')
-        messagebox.showinfo('Planilha', 'Planilha gerada com sucesso.')
-        conec.close()
-
-    except:
-        messagebox.showerror('ERRO', 'Erro ao gerar relatório.')
+        try:
+            float(vValor)
+            dSalvar = messagebox.askyesno('SALVAR', 'DESEJA SALVAR?')
+            if dSalvar:
+                try:
+                    conectarSQLite()
+                    entryValor.delete(0, 'end')
+                    entryCompra.delete(0, 'end')
+                    messagebox.showinfo('CONCLUÍDO', 'DADOS SALVOS')
+                except:
+                    messagebox.showerror('ERRO', 'Falha ao salvar dados.')
+            elif dSalvar:
+                entryValor.delete(0, 'end')
+                entryCompra.delete(0, 'end')
+                messagebox.showerror('Cancelado', 'Operação Cancelada')
+        except:
+            messagebox.showerror('ERRO', 'Insira um valor válido!')
 
 def abrirRelatorio():
+    janela.withdraw()
     jRelatorio = ctk.CTkToplevel(janela)
     jRelatorio.title('Relatório')
     larguraTelaR = jRelatorio.winfo_screenwidth()
     alturaTelaR = jRelatorio.winfo_screenheight()
-    larguraJanelaR = 250
+    larguraJanelaR = 450
     alturaJanelaR = 200
-    xR = (larguraTelaR - larguraJanelaR) -100
+    xR = (larguraTelaR - larguraJanelaR) //2
     yR = (alturaTelaR - alturaJanelaR) // 2
     jRelatorio.geometry(f'{larguraJanelaR}x{alturaJanelaR}+{xR}+{yR}')
     jRelatorio.resizable(False, False)
 
-    lblCriarEx = ctk.CTkButton(jRelatorio, text='Planilha', width=35, font=('Arial', 17), command=criarExcel).place(x=25, y=25)
+#Botao que cria o arquivo Excel
+    def criarExcel():
+        try:
+            # Conecta no BD e puxa as informações
+            conec = sql.connect(f'C:/Users/{usuario}/AppData/Dados.db')
+            cursor = conec.cursor()
+            cursor.execute('Select DATA, COMPRAS, VALORES from compras')
+            dados = cursor.fetchall()
+            # Obtem os dados das colunas
+            nome_Colunas = [descricao[0] for descricao in cursor.description]
+            # Cria um df com pandas
+            df = DataFrame(dados, columns=nome_Colunas)
+            #Se der certo ele acha a pasta, se der errado ele grava no desktop
+            try:
+                df.to_excel(f'{entryDir.get()}/Gastos.xlsx', index=False)
+            except:
+                df.to_excel(f'C:/Users/{usuario}/Desktop/Gastos.xlsx', index=False)
+            messagebox.showinfo('Planilha', 'Planilha gerada com sucesso.')
+            conec.close()
+        except:
+            messagebox.showerror('ERRO', 'Erro ao gerar relatório.')
 
+    imgEx = Image.open('excel.png')
+    imgExTk = CTkImage(light_image=imgEx, dark_image=imgEx, size=(35,35))
+    ctk.CTkButton(jRelatorio, text='',image=imgExTk, width=35, font=('Arial', 17), fg_color='transparent', command=criarExcel).place(x=25, y=100)
 
+    #Cria o botão que abrirá o diretório com uma imagem de ícone
+    imgArquivo = Image.open('arquivo.png')
+    imgTkArquivo = CTkImage(light_image=imgArquivo, dark_image=imgArquivo, size=(35,35))
+
+    def buscaDir():
+        diretorio = filedialog.askdirectory()
+        entryDir.configure(state='normal')
+        entryDir.delete(0, 'end')
+        entryDir.insert(0, diretorio)
+
+    entryDir = ctk.CTkEntry(jRelatorio,font=('Arial',17),height=30,width=380)
+    entryDir.insert(0, f'C:/Users/Desktop/{usuario}/Gastos.xlsx')
+    entryDir.configure(state='disabled')
+    entryDir.place(x=60, y=15)
+    ctk.CTkButton(jRelatorio,text='',width=35,command=buscaDir,image=imgTkArquivo,fg_color='transparent').place(x=10,y=10)
+
+    def abrirJanela():
+        janela.deiconify()
+        jRelatorio.destroy()
+    jRelatorio.protocol('WM_DELETE_WINDOW', abrirJanela)
 
 ctk.set_appearance_mode('System')
 janela = ctk.CTk()
@@ -113,6 +145,5 @@ entryValor.grid(row=2, column=1, pady=10)
 btnGuardar = ctk.CTkButton(janela, text='GUARDAR', font=('Arial', 15), command=inserirDados, width=35, border_color='darkgrey').grid(row=3, column=0, padx=10, pady=10, sticky="w")
 
 btnGerarRelatorio = ctk.CTkButton(janela, text='RELATÓRIO', font=('Arial', 15), width=35, border_color='darkgrey', command=abrirRelatorio).grid(row=3, column=1, padx=10, pady=10, sticky="w")
-
 
 janela.mainloop()
